@@ -1,0 +1,44 @@
+.main-container{
+  // display: flex;
+  max-width: 1488px;
+  margin: 0 auto;
+  min-height: 100%;
+  height: auto !important;
+  height: 100%;
+  //margin: 0 auto -142px; /* the bottom margin is the negative value of the footer's height */
+}
+
+//  ==========  FeaturedTopic  ========== 
+.featured-topic-container{
+  margin-top: 100px;
+  width:100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 75px;
+  column-gap: 75px;
+
+} 
+.featured-topic{
+  max-width: 600px;
+  max-height: 400px;
+  overflow:hidden;
+}
+
+.featured-topic-image{
+  max-width: 100%;
+  max-height: 100%;
+}
+
+@media (max-width: 616px) {
+  .featured-topic-container{
+    margin-top: 100px;
+    width:100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 25px;
+    column-gap: 100px;
+  
+  } 
+}
