@@ -38,7 +38,24 @@ else{
 
 //CREATE USER
 app.post("/createUser", userController.createUser, (req, res) => {
-  res.send('Hello World!');
+  if(res.locals.exists) return res.status(409).json(res.locals.message);
+  else {
+    res.status(200).json(res.locals.message);
+  }
+});
+
+app.post("/resetPasswordEmail", userController.resetPasswordSendEmail, (req, res) => {
+  if(res.locals.exists) return res.status(409).json(res.locals.message);
+  else {
+    res.status(200).json(res.locals.message);
+  }
+});
+
+app.post("/reset-password", userController.resetPassword, (req, res) => {
+  if(res.locals.exists) return res.status(409).json(res.locals.message);
+  else {
+    res.status(200).json(res.locals.message);
+  }
 });
 
 

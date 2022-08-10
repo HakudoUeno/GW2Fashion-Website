@@ -1,11 +1,15 @@
 const mysql = require("mysql2");
 const db = require('../models/db.js');
 const bcrypt = require("bcrypt");
+const nodemailer = require("nodemailer");
+const crypto = require('crypto');
+require('dotenv').config();
 
 module.exports = {
   createUser: async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(req.body.password,10);
     const sqlInsert = 'INSERT INTO userTable (username, email, ign, api, password) VALUES (?,?,?,?,?)'
+    const sqlSearch = 'SELECT * FROM userTable WHERE username = ? OR email = ? OR ign = ?'
     const insert_query = mysql.format(sqlInsert,
       [
         req.body.username, 
@@ -13,20 +17,112 @@ module.exports = {
         req.body.ign, 
         req.body.apiKEY, 
         hashedPassword
-      ]
+      ]``
     )
     console.log(insert_query);
-    db.connect(function(err) {
-      if (err) return next(err);
+    db.connect(function(errors) {
+      if (errors) return next(errors);
       console.log("Connected!");
-      db.query (insert_query, [ req.body.username, req.body.email, req.body.ign, req.body.api, hashedPassword,],
-        (err, res) => {
-          if(err) return next(err);
-          else {
-            console.log('USER ADDED', res)
+      db.query (sqlSearch, [req.body.username, req.body.email, req.body.ign,], (err, result) => {
+        if (err) return next(err);
+        if (result.length != 0) {
+          console.log("------> User already exists")
+          res.locals.exists = true;
+          res.locals.message = "Username/Email/IGN Already Used"
+          return next();
+        }
+        else {
+          db.query (insert_query, [ req.body.username, req.body.email, req.body.ign, req.body.api, hashedPassword,],
+            (err, result) => {
+              if(err) return next(err);
+              else {
+                console.log('USER ADDED', result)
+                res.locals.exists = false;
+                res.locals.message = "USER Created"
+                return next();
+              } 
+            })
+        }
+      });
+    });
+  },
+  resetPasswordSendEmail: async (req, res, next) => {
+    const sqlSearch = 'SELECT * FROM userTable WHERE email = ?';
+    db.connect(function(errors) {
+      if (errors) return next(errors);
+      console.log("Connected!");
+      db.query (sqlSearch, [req.body.email], (err, result) => {
+        if (err) return next(err);
+        if (result.length != 0) {
+          console.log("Email Found In DB")
+          crypto.randomBytes(48, function(err, buffer) {
+            var token = buffer.toString('hex');
+            const sqlToken = 'UPDATE userTable SET token = ? WHERE email = ?;';
+            db.query (sqlToken, [token, req.body.email], (err, result) => {
+              if (err) return next(err);
+              var mail = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: process.env.EMAIL, // Your email id
+                    pass: process.env.EMAIL_PASS // Your password
+                }
+              });
+              
+              var mailOptions = {
+                from: process.env.EMAIL,
+                to: req.body.email,
+                subject: 'GW2 Fashion Password Reset Link',
+                html: '<p>A request to reset you password has been sent. Reset it with this link: <a href="http://localhost:8080/reset-password?token=' + token + '">link</a></p>'
+        
+              };
+              
+              mail.sendMail(mailOptions, function(error, info) {
+                if (error) {
+                    console.log(error)
+                } else {
+                    console.log(info)
+                }
+              });
+              
+              res.locals.exists = true;
+              res.locals.message = "Email Sent";
+              return next();
+            })
+          });
+        }
+        else{
+          res.locals.exists = false;
+          res.locals.message = `There is no account with this email: ${req.body.email}`;
+          return next()
+        }
+      });
+    });
+  },
+
+  resetPassword: async (req, res, next) => {
+    const sqlSearch = 'SELECT * FROM userTable WHERE token = ?';
+    const sqlUpdate = 'UPDATE userTable SET password = ? WHERE token = ?;';
+    const newHashedPassword = await bcrypt.hash(req.body.password,10);
+    db.connect(function(errors) {
+      if (errors) return next(errors);
+      console.log("resetPassword - DB Connected!");
+      db.query (sqlSearch, [req.body.token], (err, result) => {
+        if (err) return next(err);
+        if (result.length != 0) {
+          console.log("Email Found In DB")
+          db.query (sqlUpdate, [newHashedPassword, req.body.token], (err, result) => {
+            if (err) return next(err);
+            res.locals.passChanged = true;
+            res.locals.message = "Password Changed";
             return next();
-          } 
-        })
+          })
+        }
+        else{
+          res.locals.exists = false;
+          res.locals.message = `Error`;
+          return next()
+        }
+      });
     });
   }
 }
